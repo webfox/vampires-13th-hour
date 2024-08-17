@@ -21,6 +21,7 @@ jobs:
         run: |
           apt-get update && apt-get install --yes zip
           npm install
+          git config --global --add safe.directory /__w/vampires-13th-hour/vampires-13th-hour
       - name: Build
         run: npm run build
       - name: Calculate release number
