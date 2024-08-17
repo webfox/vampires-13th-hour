@@ -25,6 +25,7 @@ class FrameRateMonitor {
     ctx.fillText(`FPS: ${this.fps}`, 10, 20);
   }
 }
+
 class Player {
   constructor(x, y) {
     this.x = x;
@@ -36,6 +37,7 @@ class Player {
     this.dx = 0;
     this.dy = 0;
     this.health = 100;
+    this.viewDistance = 200;
   }
 
   getX() {
@@ -83,6 +85,17 @@ class Player {
   render(ctx, offsetX, offsetY) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear the canvas
     this.renderBackground(ctx, offsetX, offsetY);
+
+    // Draw radial gradient around the player
+    const gradient = ctx.createRadialGradient(
+      ctx.canvas.width / 2, ctx.canvas.height / 2, 0,
+      ctx.canvas.width / 2, ctx.canvas.height / 2, this.viewDistance,
+    );
+    gradient.addColorStop(0, 'rgb(140,140,140)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
     ctx.beginPath();
     ctx.arc(ctx.canvas.width / 2, ctx.canvas.height / 2, 10, 0, Math.PI * 2, true); // Draw a circle with radius 10 at the center
     ctx.fillStyle = 'blue'; // Set the fill color
@@ -94,13 +107,7 @@ class Player {
   }
 
   renderBackground(ctx, offsetX, offsetY) {
-    // Example background rendering (a simple grid)
     ctx.fillStyle = 'lightgray';
-    for (let x = -offsetX % 50; x < ctx.canvas.width; x += 50) {
-      for (let y = -offsetY % 50; y < ctx.canvas.height; y += 50) {
-        ctx.fillRect(x, y, 48, 48);
-      }
-    }
   }
 
   renderHealthBar(ctx) {
@@ -220,26 +227,30 @@ class Enemy {
   }
 
   render(ctx, offsetX, offsetY) {
+    const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
+    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
     ctx.beginPath();
     ctx.arc(this.x - offsetX + ctx.canvas.width / 2, this.y - offsetY + ctx.canvas.height / 2, this.radius, 0, Math.PI * 2, true);
-    ctx.fillStyle = 'red'; // Set the fill color for enemies
+    ctx.fillStyle = `rgb(255, 0, 0,${opacity})`;
     ctx.fill();
     ctx.closePath();
   }
 
   renderHealthBar(ctx, offsetX, offsetY) {
+    const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
+    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
     const barWidth = 50;
     const barHeight = 5;
     const x = this.x - offsetX + ctx.canvas.width / 2 - barWidth / 2;
     const y = this.y - offsetY + ctx.canvas.height / 2 - this.radius - 10;
 
-    ctx.fillStyle = 'red';
+    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
     ctx.fillRect(x, y, barWidth, barHeight);
 
-    ctx.fillStyle = 'green';
+    ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
     ctx.fillRect(x, y, (this.health / 100) * barWidth, barHeight);
 
-    ctx.strokeStyle = 'black';
+    ctx.strokeStyle = `rgba(0, 0, 0, ${opacity})`;
     ctx.strokeRect(x, y, barWidth, barHeight);
   }
 
@@ -307,6 +318,8 @@ class Axe extends Weapon {
 
   draw(ctx, offsetX, offsetY, angle) {
     let x, y;
+    const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
+    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
 
     if (this.equipped) {
       x = ctx.canvas.width / 2;
@@ -326,7 +339,7 @@ class Axe extends Weapon {
     // Draw the brown handle
     ctx.beginPath();
     ctx.rect(x - 2.5, y - 20, 5, 40); // Draw a rectangle representing the stick
-    ctx.fillStyle = 'brown'; // Set the fill color
+    ctx.fillStyle = `rgb(0,120,120,${opacity})`; // Set the fill color
     ctx.fill();
     ctx.closePath();
 
@@ -336,7 +349,7 @@ class Axe extends Weapon {
     ctx.lineTo(x - 10, y - 30);
     ctx.lineTo(x + 10, y - 30);
     ctx.lineTo(x + 2.5, y - 20);
-    ctx.fillStyle = 'silver'; // Set the fill color
+    ctx.fillStyle = `rgb(120,120,120,${opacity})`; // Set the fill color
     ctx.fill();
     ctx.closePath();
 
@@ -442,6 +455,8 @@ class Pistol extends Gun {
 
   draw(ctx, offsetX, offsetY, angle) {
     let x, y;
+    const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
+    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
 
     if (this.equipped) {
       x = ctx.canvas.width / 2;
@@ -460,7 +475,7 @@ class Pistol extends Gun {
 
     ctx.beginPath();
     ctx.rect(x - 5, y - 10, 10, 20); // Draw a rectangle representing the gun
-    ctx.fillStyle = 'black'; // Set the fill color
+    ctx.fillStyle = `rgb(0,0,0,${opacity})`; // Set the fill color
     ctx.fill();
     ctx.closePath();
 
@@ -590,7 +605,7 @@ function gameLoop() {
   }
 
   // Randomly spawn enemies
-  if (Math.random() < 0.01 && !paused && enemies.length < 1) { // Adjust the probability as needed
+  if (Math.random() < 0.01 && !paused && enemies.length < 20) { // Adjust the probability as needed
     enemies.push(Enemy.spawnRandom(player));
   }
 
@@ -606,7 +621,6 @@ function startGame() {
 
 function main() {
   createListeners();
-
 }
 
 main();
