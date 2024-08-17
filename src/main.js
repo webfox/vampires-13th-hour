@@ -38,6 +38,7 @@ class Player {
     this.dy = 0;
     this.health = 100;
     this.viewDistance = 200;
+    this.score = 0;
   }
 
   getX() {
@@ -67,7 +68,7 @@ class Player {
   takeDamage(damage) {
     this.health -= damage;
     if (this.health <= 0) {
-      // alert('Game Over!');
+      endGame();
     }
   }
 
@@ -78,13 +79,16 @@ class Player {
     this.dy = dy;
   }
 
+  updateScore(score) {
+    this.score += score;
+  }
+
   getDirection() {
     return Math.atan2(this.dy, this.dx);
   }
 
   render(ctx, offsetX, offsetY) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear the canvas
-    this.renderBackground(ctx, offsetX, offsetY);
 
     // Draw radial gradient around the player
     const gradient = ctx.createRadialGradient(
@@ -105,11 +109,6 @@ class Player {
       this.renderWeapon(ctx, offsetX, offsetY);
     }
   }
-
-  renderBackground(ctx, offsetX, offsetY) {
-    ctx.fillStyle = 'lightgray';
-  }
-
   renderHealthBar(ctx) {
     const barWidth = 400;
     const barHeight = 10;
@@ -124,6 +123,12 @@ class Player {
 
     ctx.strokeStyle = 'black';
     ctx.strokeRect(x, y, barWidth, barHeight);
+  }
+
+  renderScore(ctx) {
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Score: ${this.score}`, 10, 40);
   }
 
   checkCollision(weapon) {
@@ -185,6 +190,7 @@ class Enemy {
     this.lastAttackTime = 0;
     this.attackCooldown = 1000;
     this.attackDamage = 5;
+    this.points = 10;
   }
 
   getX() {
@@ -214,9 +220,10 @@ class Enemy {
   updateHealth(damage) {
     this.health -= damage;
     if (this.health <= 0) {
-      // Remove the enemy
       const index = enemies.indexOf(this);
+      player.updateScore(this.points);
       enemies.splice(index, 1);
+
     }
   }
 
@@ -309,6 +316,14 @@ class Weapon {
 
   attack() {}
 
+  static spawnRandom() {
+    const direction = player.getDirection();
+    const distance = 400; // Distance off the map
+    const x = player.getX() + Math.cos(direction) * distance;
+    const y = player.getY() + Math.sin(direction) * distance;
+    return new this(x, y);
+  }
+
   render(ctx, offsetX, offsetY, angle) {
     this.draw(ctx, offsetX, offsetY, angle);
   }
@@ -319,13 +334,14 @@ class Axe extends Weapon {
   draw(ctx, offsetX, offsetY, angle) {
     let x, y;
     const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
-    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
+    let opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
 
     if (this.equipped) {
       x = ctx.canvas.width / 2;
       y = ctx.canvas.height / 2;
       this.x = x;
       this.y = y;
+      opacity = 1;
     } else {
       x = this.x - offsetX + ctx.canvas.width / 2;
       y = this.y - offsetY + ctx.canvas.height / 2;
@@ -456,13 +472,14 @@ class Pistol extends Gun {
   draw(ctx, offsetX, offsetY, angle) {
     let x, y;
     const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
-    const opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
+    let opacity = Math.max(0, Math.min(1, 1 - (distance - player.viewDistance) / 100));
 
     if (this.equipped) {
       x = ctx.canvas.width / 2;
       y = ctx.canvas.height / 2;
       this.x = x;
       this.y = y;
+      opacity = 1;
     } else {
       x = this.x - offsetX + ctx.canvas.width / 2;
       y = this.y - offsetY + ctx.canvas.height / 2;
@@ -488,6 +505,7 @@ class Pistol extends Gun {
   }
 }
 
+
 /**
  * GAME CONSTANTS
  */
@@ -495,14 +513,15 @@ const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
 const keys = {};
 let paused = false;
+let remainingTime = 13 * 60;
+
 const player = new Player(0, 0);
 
 const frameRateMonitor = new FrameRateMonitor();
 
-const weapons = [
-  new Axe(100, 100),
-  new Pistol(200, 100),
-];
+const availableWeapons = [Axe, Pistol];
+
+const weapons = [];
 
 const enemies = [];
 
@@ -546,6 +565,10 @@ function createListeners() {
   document.getElementById('restart-button').addEventListener('click', () => {
     restartGame();
   });
+
+  document.getElementById('restart-button-2').addEventListener('click', () => {
+    restartGame();
+  });
 }
 
 function togglePause() {
@@ -561,18 +584,18 @@ function restartGame() {
   player.attacking = false;
   enemies.length = 0;
   weapons.length = 0;
-  weapons.push(new Axe(100, 100), new Pistol(200, 100));
   paused = false;
+  document.getElementById('end-menu').style.display = 'none';
   document.getElementById('pause-menu').style.display = 'none';
-  // startGame();
+  remainingTime = 13 * 60;
 }
 
 function gameLoop() {
   let dx = 0, dy = 0;
-  if (keys['w']) dy = -5; // Move up
-  if (keys['a']) dx = -5; // Move left
-  if (keys['s']) dy = 5; // Move down
-  if (keys['d']) dx = 5; // Move right
+  if (keys['w']) dy = -5;
+  if (keys['a']) dx = -5;
+  if (keys['s']) dy = 5;
+  if (keys['d']) dx = 5;
 
   if (!paused) {
     player.updatePosition(dx, dy);
@@ -580,6 +603,7 @@ function gameLoop() {
 
   player.render(ctx, player.getX(), player.getY());
   player.renderHealthBar(ctx);
+  player.renderScore(ctx)
 
   for (const weapon of weapons) {
     if (player.checkCollision(weapon)) {
@@ -605,17 +629,43 @@ function gameLoop() {
   }
 
   // Randomly spawn enemies
-  if (Math.random() < 0.01 && !paused && enemies.length < 20) { // Adjust the probability as needed
+  if (Math.random() < 0.01 && !paused && enemies.length < 20) {
     enemies.push(Enemy.spawnRandom(player));
+  }
+
+  if (Math.random() < 0.01 && !paused && weapons.length < 5) {
+    weapons.push(availableWeapons[Math.floor(Math.random() * availableWeapons.length)].spawnRandom());
   }
 
   frameRateMonitor.update();
   frameRateMonitor.render(ctx);
 
-  requestAnimationFrame(gameLoop); // Call gameLoop again on the next frame
+  requestAnimationFrame(gameLoop);
+}
+
+
+function updateClock() {
+  const minutes = Math.floor(remainingTime / 60);
+  const seconds = remainingTime % 60;
+  document.getElementById('clock').textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function countdown() {
+  if (remainingTime > 0) {
+    remainingTime--;
+    updateClock();
+  } else {
+    endGame();
+  }
+}
+
+function endGame() {
+  paused = true;
+  document.getElementById('end-menu').style.display = 'flex';
 }
 
 function startGame() {
+  setInterval(countdown, 1000);
   gameLoop();
 }
 
