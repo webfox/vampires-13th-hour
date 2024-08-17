@@ -5,8 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Vampires 13th Hour</title>
 </head>
-<body>
-<canvas id="game" width="800" height="800"></canvas>
+<body style="background: radial-gradient(#a5a5a5, #151109);height: 100vh; overflow: hidden">
+
+<div style="display: flex; justify-content: center; align-items: center; height: 100%; position: relative">
+    <div
+        style="position: absolute; top: 0; background: #b53733; padding: 10px; width: 90%; text-align: center; font-size: xxx-large; border-radius: 20px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);">
+        Vampires 13th Hour
+    </div>
+
+    <div style="position: relative">
+        <div id="start-menu"
+             style="position: absolute; z-index: 10;background: rgb(21, 17,9,0.8); height: 100%; width: 100%; display: flex; align-items: center;justify-content: center">
+            <div style="text-align: center; color: white;">
+                <h1>Vampires 13th Hour</h1>
+                <button id="start-button" style="padding: 10px 20px; font-size: large; cursor: pointer;">Start Game</button>
+            </div>
+        </div>
+        <div id="pause-menu"
+             style="position: absolute; z-index: 10;background: rgb(21, 17,9,0.8); height: 100%; width: 100%; display: none; align-items: center;justify-content: center">
+            <div style="text-align: center; color: white;">
+                <h1>Game Paused</h1>
+                <button id="resume-button" style="padding: 10px 20px; font-size: large; cursor: pointer;">Resume Game</button>
+                <button id="restart-button" style="padding: 10px 20px; font-size: large; cursor: pointer;">Restart Game</button>
+            </div>
+        </div>
+        <canvas id="game" width="800" height="800"
+                style="border-radius: 20px; background: #151109; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5)"></canvas>
+    </div>
+</div>
 <script src="main.js" type="module"></script>
 </body>
 </html>

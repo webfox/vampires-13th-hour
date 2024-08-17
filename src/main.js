@@ -65,7 +65,7 @@ class Player {
   takeDamage(damage) {
     this.health -= damage;
     if (this.health <= 0) {
-      alert('Game Over!');
+      // alert('Game Over!');
     }
   }
 
@@ -480,9 +480,6 @@ const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
 const keys = {};
 let paused = false;
-let lastPauseTime = 0;
-const pauseCooldown = 500;
-
 const player = new Player(0, 0);
 
 const frameRateMonitor = new FrameRateMonitor();
@@ -501,6 +498,9 @@ const enemies = [];
 function createListeners() {
   function handleKeyDown(event) {
     keys[event.key] = true;
+    if (event.key === 'p' || event.key === 'Escape') {
+      togglePause();
+    }
   }
 
   function handleKeyUp(event) {
@@ -519,6 +519,37 @@ function createListeners() {
     player.attack();
   });
 
+  document.getElementById('start-button').addEventListener('click', () => {
+    document.getElementById('start-menu').style.display = 'none';
+    startGame();
+  });
+
+  document.getElementById('resume-button').addEventListener('click', () => {
+    togglePause();
+  });
+
+  document.getElementById('restart-button').addEventListener('click', () => {
+    restartGame();
+  });
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pause-menu').style.display = paused ? 'flex' : 'none';
+}
+
+function restartGame() {
+  player.setX(0);
+  player.setY(0);
+  player.setHealth(100);
+  player.weapon = null;
+  player.attacking = false;
+  enemies.length = 0;
+  weapons.length = 0;
+  weapons.push(new Axe(100, 100), new Pistol(200, 100));
+  paused = false;
+  document.getElementById('pause-menu').style.display = 'none';
+  // startGame();
 }
 
 function gameLoop() {
@@ -527,12 +558,6 @@ function gameLoop() {
   if (keys['a']) dx = -5; // Move left
   if (keys['s']) dy = 5; // Move down
   if (keys['d']) dx = 5; // Move right
-
-  const currentTime = performance.now();
-  if (keys['p'] && currentTime - lastPauseTime > pauseCooldown) {
-    paused = !paused;
-    lastPauseTime = currentTime;
-  }
 
   if (!paused) {
     player.updatePosition(dx, dy);
@@ -576,8 +601,12 @@ function gameLoop() {
 }
 
 function startGame() {
-  createListeners();
   gameLoop();
 }
 
-startGame();
+function main() {
+  createListeners();
+
+}
+
+main();
