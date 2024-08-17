@@ -8,12 +8,5 @@ This is Webfox' first submission to the js13kGames competition. We are by no mea
 This year's competition was themed around the fear of number 13.
 
 
-<div id="html-content"></div>
+<iframe src="https://raw.githubusercontent.com/webfox/vampires-13th-hour/main/src/index.html" width="100%" height="500px"></iframe>
 
-<script>
-fetch('https://raw.githubusercontent.com/webfox/vampires-13th-hour/main/src/index.html')
-  .then(response => response.text())
-  .then(data => {
-    document.getElementById('html-content').innerHTML = data;
-  });
-</script>
