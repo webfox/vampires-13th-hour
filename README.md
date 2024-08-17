@@ -6,3 +6,7 @@ This is Webfox' first submission to the js13kGames competition. We are by no mea
 
 
 This year's competition was themed around the fear of number 13.
+
+
+You can play it here!
+https://webfox.github.io/vampires-13th-hour/
