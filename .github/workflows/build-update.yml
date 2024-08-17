@@ -6,37 +6,50 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
-
+    container: node:20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: '16'
-
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org/'
       - name: Install dependencies
-        run: npm install
-
-      - name: Build project
+        run: |
+          apt-get update && apt-get install --yes zip
+          npm install
+      - name: Build
         run: npm run build
-
-      - name: Calculate dist directory size
-        id: calc_size
-        run: echo "dist_size=$(du -sh dist | cut -f1)" >> $GITHUB_ENV
-
-      - name: Update README.md
+      - name: Calculate release number
+        run: echo "RELEASE_NUMBER=$(expr 23 + ${{ github.run_number }})" >> $GITHUB_ENV
+      - name: Zip the build
+        run: zip -r build-${{ env.RELEASE_NUMBER }}.zip dist
+      - name: Create Release
+        id: create_release
+        if: env.ACT != 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-${{ env.RELEASE_NUMBER }}
+          release_name: Release ${{ env.RELEASE_NUMBER }}
+          draft: false
+          prerelease: false
+          body: "Description of the release"
+      - name: Upload Release Asset
+        if: env.ACT != 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./kiosk-${{ env.RELEASE_NUMBER }}.zip
+          asset_name: kiosk-${{ env.RELEASE_NUMBER }}.zip
+          asset_content_type: application/zip
+      - name: Update README
         run: |
-          dist_size=$(echo ${{ env.dist_size }})
+          dist_size=$(wc -c ./kiosk-${{ env.RELEASE_NUMBER }}.zip | awk '{print $1}')
           sed -i "s/Dist size: .*/Dist size: $dist_size/" README.md
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add README.md
-          git commit -m "Update README with dist size"
-          git push
