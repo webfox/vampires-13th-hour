@@ -1,0 +1,42 @@
+name: Build and Update README
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Calculate dist directory size
+        id: calc_size
+        run: echo "dist_size=$(du -sh dist | cut -f1)" >> $GITHUB_ENV
+
+      - name: Update README.md
+        run: |
+          dist_size=$(echo ${{ env.dist_size }})
+          sed -i "s/Dist size: .*/Dist size: $dist_size/" README.md
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m "Update README with dist size"
+          git push
