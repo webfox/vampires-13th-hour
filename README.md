@@ -1,6 +1,6 @@
 # Vampires 13th Hour
 
-Dist size: 20K
+Dist size: 3788
 
 ### 2024 js13kGames https://js13kgames.com/
 
