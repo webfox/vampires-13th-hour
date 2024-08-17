@@ -1,11 +1,17 @@
-// src/main.js
-
+/**
+ * GAME CLASSES
+ */
 class Player {
   constructor(x, y) {
     this.x = x;
     this.y = y;
     this.weapon = null; // The player starts without a weapon
     this.attacking = false;
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.dx = 0;
+    this.dy = 0;
+    this.health = 100;
   }
 
   getX() {
@@ -16,6 +22,10 @@ class Player {
     return this.y;
   }
 
+  getHealth() {
+    return this.health;
+  }
+
   setX(x) {
     this.x = x;
   }
@@ -24,9 +34,26 @@ class Player {
     this.y = y;
   }
 
+  setHealth(health) {
+    this.health = health;
+  }
+
+  takeDamage(damage) {
+    this.health -= damage;
+    if (this.health <= 0) {
+      alert('Game Over!');
+    }
+  }
+
   updatePosition(dx, dy) {
     this.x += dx;
     this.y += dy;
+    this.dx = dx;
+    this.dy = dy;
+  }
+
+  getDirection() {
+    return Math.atan2(this.dy, this.dx);
   }
 
   render(ctx, offsetX, offsetY) {
@@ -50,6 +77,22 @@ class Player {
         ctx.fillRect(x, y, 48, 48);
       }
     }
+  }
+
+  renderHealthBar(ctx) {
+    const barWidth = 400;
+    const barHeight = 10;
+    const x = ctx.canvas.width / 2 - barWidth / 2;
+    const y = ctx.canvas.height / 2 - 380;
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = 'green';
+    ctx.fillRect(x, y, (this.health / 100) * barWidth, barHeight);
+
+    ctx.strokeStyle = 'black';
+    ctx.strokeRect(x, y, barWidth, barHeight);
   }
 
   checkCollision(weapon) {
@@ -102,6 +145,99 @@ class Player {
   }
 }
 
+class Enemy {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 10; // Radius for collision detection
+    this.speed = 1; // Speed of the
+    this.health = 100;
+    this.lastAttackTime = 0; // Track the last attack time
+    this.attackCooldown = 1000; // Cooldown period in milliseconds
+  }
+
+  getX() {
+    return this.x;
+  }
+
+  getY() {
+    return this.y;
+  }
+
+  getHealth() {
+    return this.health;
+  }
+
+  setX(x) {
+    this.x = x;
+  }
+
+  setY(y) {
+    this.y = y;
+  }
+
+  setHealth(health) {
+    this.health = health;
+  }
+
+  updateHealth(damage) {
+    this.health -= damage;
+    if (this.health <= 0) {
+      // Remove the enemy
+      const index = enemies.indexOf(this);
+      enemies.splice(index, 1);
+    }
+  }
+
+  moveTowardsPlayer(player) {
+    const angle = Math.atan2(player.getY() - this.y, player.getX() - this.x);
+    this.x += Math.cos(angle) * this.speed;
+    this.y += Math.sin(angle) * this.speed;
+  }
+
+  render(ctx, offsetX, offsetY) {
+    ctx.beginPath();
+    ctx.arc(this.x - offsetX + ctx.canvas.width / 2, this.y - offsetY + ctx.canvas.height / 2, this.radius, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'red'; // Set the fill color for enemies
+    ctx.fill();
+    ctx.closePath();
+  }
+
+  renderHealthBar(ctx, offsetX, offsetY) {
+    const barWidth = 50;
+    const barHeight = 5;
+    const x = this.x - offsetX + ctx.canvas.width / 2 - barWidth / 2;
+    const y = this.y - offsetY + ctx.canvas.height / 2 - this.radius - 10;
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = 'green';
+    ctx.fillRect(x, y, (this.health / 100) * barWidth, barHeight);
+
+    ctx.strokeStyle = 'black';
+    ctx.strokeRect(x, y, barWidth, barHeight);
+  }
+
+  checkCollision(player) {
+    const distance = Math.sqrt((this.x - player.getX()) ** 2 + (this.y - player.getY()) ** 2);
+    const currentTime = performance.now();
+    if (distance < this.radius + 10 && currentTime - this.lastAttackTime > this.attackCooldown) { // Assuming player's radius is 10
+      this.lastAttackTime = currentTime;
+      return true;
+    }
+    return false;
+  }
+
+  static spawnRandom(player) {
+    const direction = player.getDirection();
+    const distance = 400; // Distance off the map
+    const x = player.getX() + Math.cos(direction) * distance;
+    const y = player.getY() + Math.sin(direction) * distance;
+    return new Enemy(x, y);
+  }
+}
+
 class Weapon {
   constructor(x, y, type) {
     this.x = x;
@@ -109,6 +245,10 @@ class Weapon {
     this.type = type;
     this.equipped = false;
     this.attacking = false;
+    this.damage = 10;
+    this.range = 20;
+    this.dx = 0;
+    this.dy = 0;
   }
 
   getX() {
@@ -150,6 +290,8 @@ class Weapon {
     if (this.equipped) {
       x = ctx.canvas.width / 2;
       y = ctx.canvas.height / 2;
+      this.x = x;
+      this.y = y;
     } else {
       x = this.x - offsetX + ctx.canvas.width / 2;
       y = this.y - offsetY + ctx.canvas.height / 2;
@@ -180,27 +322,43 @@ class Weapon {
     ctx.restore();
   }
 
-  attack() {
-    this.attacking = true;
-    setTimeout(() => {
-      this.attacking = false;
-    }, 500);
-  }
+  checkCollision(enemy, offsetX, offsetY) {
+    const weaponCenterX = this.x;
+    const weaponCenterY = this.y;
+    const enemyCenterX = enemy.getX() - offsetX + ctx.canvas.width / 2;
+    const enemyCenterY = enemy.getY() - offsetY + ctx.canvas.height / 2;
+    const distance = Math.sqrt((weaponCenterX - enemyCenterX) ** 2 + (weaponCenterY - enemyCenterY) ** 2);
 
+    const collision = distance < this.range + enemy.radius;
+
+    if (collision) {
+      this.attacking = false;
+    }
+
+    return  collision;
+  }
   startSwing() {
     this.angle = 0; // Start angle
     const swingDuration = 500; // Duration of the swing in milliseconds
     const startTime = performance.now();
+    this.attacking = true;
 
     const animateSwing = (currentTime) => {
+
+      if(!this.attacking) {
+        this.angle = 0;
+        return
+      }
+
       const elapsedTime = currentTime - startTime;
       const progress = Math.min(elapsedTime / swingDuration, 1);
-      this.angle = this.angle+ (Math.PI / 15) * progress; // Animate from -45 to +45 degrees
+      this.angle = this.angle + (Math.PI / 15) * progress; // Animate from -45 to +45 degrees
 
       if (progress < 1) {
         requestAnimationFrame(animateSwing);
       } else {
         this.angle = 0; // Reset angle after swing
+        this.attacking = false;
       }
     };
 
@@ -215,37 +373,53 @@ class Weapon {
   }
 }
 
-const keys = {};
 
-function handleKeyDown(event) {
-  keys[event.key] = true;
-}
-
-function handleKeyUp(event) {
-  keys[event.key] = false;
-}
-
-document.addEventListener('keydown', handleKeyDown);
-document.addEventListener('keyup', handleKeyUp);
-
-
-document.addEventListener('mousemove', (event) => {
-  const rect = canvas.getBoundingClientRect();
-  player.updateMousePosition(event.clientX - rect.left, event.clientY - rect.top);
-});
-document.addEventListener('mousedown', () => {
-  player.attack();
-});
-
+/**
+ * GAME CONSTANTS
+ */
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
-const player = new Player(0, 0); // Initialize player at position (0, 0)
+const keys = {};
+let paused = false;
+let lastPauseTime = 0;
+const pauseCooldown = 500;
+
+const player = new Player(0, 0);
+
 const weapons = [
   new Weapon(100, 100, 'axe'),
   new Weapon(300, 300, 'axe'),
   new Weapon(400, 400, 'axe'),
 ];
 
+const enemies = [];
+
+
+/**
+ * MAIN GAME FUNCTIONS
+ */
+function createListeners() {
+  function handleKeyDown(event) {
+    keys[event.key] = true;
+  }
+
+  function handleKeyUp(event) {
+    keys[event.key] = false;
+  }
+
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+
+
+  document.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    player.updateMousePosition(event.clientX - rect.left, event.clientY - rect.top);
+  });
+  document.addEventListener('mousedown', () => {
+    player.attack();
+  });
+
+}
 
 function gameLoop() {
   let dx = 0, dy = 0;
@@ -254,9 +428,18 @@ function gameLoop() {
   if (keys['s']) dy = 5; // Move down
   if (keys['d']) dx = 5; // Move right
 
-  player.updatePosition(dx, dy);
+  const currentTime = performance.now();
+  if (keys['p'] && currentTime - lastPauseTime > pauseCooldown) {
+    paused = !paused;
+    lastPauseTime = currentTime;
+  }
+
+  if (!paused) {
+    player.updatePosition(dx, dy);
+  }
 
   player.render(ctx, player.getX(), player.getY());
+  player.renderHealthBar(ctx);
 
   for (const weapon of weapons) {
     if (player.checkCollision(weapon)) {
@@ -264,14 +447,34 @@ function gameLoop() {
         player.pickUpWeapon(weapon);
       }
     }
-    weapon.render(ctx, player.getX(), player.getY());
+    weapon.render(ctx, player.getX(), player.getY(), player.getMouseAngle());
+  }
+
+  for (const enemy of enemies) {
+    if (!paused) {
+      enemy.moveTowardsPlayer(player);
+    }
+    enemy.render(ctx, player.getX(), player.getY());
+    enemy.renderHealthBar(ctx, player.getX(), player.getY());
+    if (player.attacking && !!player.weapon && player.weapon.checkCollision(enemy, player.getX(), player.getY())) {
+      enemy.updateHealth(player.weapon.damage);
+    }
+    if (enemy.checkCollision(player) && !paused) {
+      player.takeDamage(5);
+    }
+  }
+
+  // Randomly spawn enemies
+  if (Math.random() < 0.01 && !paused && enemies.length < 1) { // Adjust the probability as needed
+    enemies.push(Enemy.spawnRandom(player));
   }
 
   requestAnimationFrame(gameLoop); // Call gameLoop again on the next frame
 }
 
 function startGame() {
-  gameLoop(); // Start the game loop
+  createListeners();
+  gameLoop();
 }
 
 startGame();
