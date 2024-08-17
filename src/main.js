@@ -1,6 +1,30 @@
 /**
  * GAME CLASSES
  */
+
+class FrameRateMonitor {
+  constructor() {
+    this.lastTime = performance.now();
+    this.frameCount = 0;
+    this.fps = 0;
+  }
+
+  update() {
+    const currentTime = performance.now();
+    this.frameCount++;
+    if (currentTime - this.lastTime >= 1000) {
+      this.fps = this.frameCount;
+      this.frameCount = 0;
+      this.lastTime = currentTime;
+    }
+  }
+
+  render(ctx) {
+    ctx.fillStyle = 'black';
+    ctx.font = '16px Arial';
+    ctx.fillText(`FPS: ${this.fps}`, 10, 20);
+  }
+}
 class Player {
   constructor(x, y) {
     this.x = x;
@@ -136,8 +160,7 @@ class Player {
   attack() {
     if (this.weapon) {
       this.attacking = true;
-
-      this.weapon.startSwing();
+      this.weapon.attack(this.x, this.y, this.getMouseAngle());
       setTimeout(() => {
         this.attacking = false;
       }, 500);
@@ -149,11 +172,12 @@ class Enemy {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.radius = 10; // Radius for collision detection
-    this.speed = 1; // Speed of the
+    this.radius = 10;
+    this.speed = 1;
     this.health = 100;
-    this.lastAttackTime = 0; // Track the last attack time
-    this.attackCooldown = 1000; // Cooldown period in milliseconds
+    this.lastAttackTime = 0;
+    this.attackCooldown = 1000;
+    this.attackDamage = 5;
   }
 
   getX() {
@@ -239,16 +263,13 @@ class Enemy {
 }
 
 class Weapon {
-  constructor(x, y, type) {
+  constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.type = type;
     this.equipped = false;
     this.attacking = false;
     this.damage = 10;
     this.range = 20;
-    this.dx = 0;
-    this.dy = 0;
   }
 
   getX() {
@@ -259,10 +280,6 @@ class Weapon {
     return this.y;
   }
 
-  getType() {
-    return this.type;
-  }
-
   setX(x) {
     this.x = x;
   }
@@ -271,20 +288,24 @@ class Weapon {
     this.y = y;
   }
 
-  setType(type) {
-    this.type = type;
-  }
-
-  updatePosition(dx, dy) {
-    this.x += dx;
-    this.y += dy;
-  }
-
   setEquipped(equipped) {
     this.equipped = equipped;
   }
 
-  drawAxe(ctx, offsetX, offsetY, angle) {
+  draw(ctx, offsetX, offsetY, angle) {}
+
+  checkCollision(enemy, offsetX, offsetY) {}
+
+  attack() {}
+
+  render(ctx, offsetX, offsetY, angle) {
+    this.draw(ctx, offsetX, offsetY, angle);
+  }
+}
+
+class Axe extends Weapon {
+
+  draw(ctx, offsetX, offsetY, angle) {
     let x, y;
 
     if (this.equipped) {
@@ -322,22 +343,8 @@ class Weapon {
     ctx.restore();
   }
 
-  checkCollision(enemy, offsetX, offsetY) {
-    const weaponCenterX = this.x;
-    const weaponCenterY = this.y;
-    const enemyCenterX = enemy.getX() - offsetX + ctx.canvas.width / 2;
-    const enemyCenterY = enemy.getY() - offsetY + ctx.canvas.height / 2;
-    const distance = Math.sqrt((weaponCenterX - enemyCenterX) ** 2 + (weaponCenterY - enemyCenterY) ** 2);
 
-    const collision = distance < this.range + enemy.radius;
-
-    if (collision) {
-      this.attacking = false;
-    }
-
-    return  collision;
-  }
-  startSwing() {
+  attack() {
     this.angle = 0; // Start angle
     const swingDuration = 500; // Duration of the swing in milliseconds
     const startTime = performance.now();
@@ -345,9 +352,9 @@ class Weapon {
 
     const animateSwing = (currentTime) => {
 
-      if(!this.attacking) {
+      if (!this.attacking) {
         this.angle = 0;
-        return
+        return;
       }
 
       const elapsedTime = currentTime - startTime;
@@ -365,14 +372,106 @@ class Weapon {
     requestAnimationFrame(animateSwing);
   }
 
-
-  render(ctx, offsetX, offsetY, angle) {
-    if (this.type === 'axe') {
-      this.drawAxe(ctx, offsetX, offsetY, angle);
+  checkCollision(enemy, offsetX, offsetY) {
+    const weaponCenterX = this.x;
+    const weaponCenterY = this.y;
+    const enemyCenterX = enemy.getX() - offsetX + ctx.canvas.width / 2;
+    const enemyCenterY = enemy.getY() - offsetY + ctx.canvas.height / 2;
+    const distance = Math.sqrt((weaponCenterX - enemyCenterX) ** 2 + (weaponCenterY - enemyCenterY) ** 2);
+    const collision = distance < this.range + enemy.radius;
+    if (collision) {
+      this.attacking = false;
     }
+    return collision;
+  }
+
+}
+
+class Bullet {
+  constructor(x, y, angle, speed, radius, damage) {
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+    this.speed = speed;
+    this.radius = radius;
+    this.damage = damage;
+  }
+
+  movePosition() {
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+  }
+
+  checkCollision(enemy) {
+    const distance = Math.sqrt((this.x - enemy.getX()) ** 2 + (this.y - enemy.getY()) ** 2);
+    return distance < this.radius + enemy.radius;
+  }
+
+  draw(ctx, offsetX, offsetY) {
+    ctx.beginPath();
+    ctx.arc(this.x - offsetX + ctx.canvas.width / 2, this.y - offsetY + ctx.canvas.height / 2, this.radius, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'black'; // Set the fill color
+    ctx.fill();
+    ctx.closePath();
+  }
+
+}
+
+class Gun extends Weapon {
+  constructor(x, y) {
+    super(x, y);
+    this.bullets = [];
   }
 }
 
+class Pistol extends Gun {
+  attack(x, y, angle) {
+    const bullet = new Bullet(x, y, angle, 5, 2, 10);
+    this.bullets.push(bullet);
+  }
+
+  checkCollision(enemy, offsetX, offsetY) {
+    for (let i = 0; i < this.bullets.length; i++) {
+      if (this.bullets[i].checkCollision(enemy)) {
+        this.bullets.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  draw(ctx, offsetX, offsetY, angle) {
+    let x, y;
+
+    if (this.equipped) {
+      x = ctx.canvas.width / 2;
+      y = ctx.canvas.height / 2;
+      this.x = x;
+      this.y = y;
+    } else {
+      x = this.x - offsetX + ctx.canvas.width / 2;
+      y = this.y - offsetY + ctx.canvas.height / 2;
+    }
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(this.angle + angle);
+    ctx.translate(-x, -y);
+
+    ctx.beginPath();
+    ctx.rect(x - 5, y - 10, 10, 20); // Draw a rectangle representing the gun
+    ctx.fillStyle = 'black'; // Set the fill color
+    ctx.fill();
+    ctx.closePath();
+
+    ctx.restore();
+    for (let i = 0; i < this.bullets.length; i++) {
+      this.bullets[i].movePosition();
+      this.bullets[i].draw(ctx, offsetX, offsetY);
+    }
+
+  }
+}
 
 /**
  * GAME CONSTANTS
@@ -386,10 +485,11 @@ const pauseCooldown = 500;
 
 const player = new Player(0, 0);
 
+const frameRateMonitor = new FrameRateMonitor();
+
 const weapons = [
-  new Weapon(100, 100, 'axe'),
-  new Weapon(300, 300, 'axe'),
-  new Weapon(400, 400, 'axe'),
+  new Axe(100, 100),
+  new Pistol(200, 100),
 ];
 
 const enemies = [];
@@ -460,7 +560,7 @@ function gameLoop() {
       enemy.updateHealth(player.weapon.damage);
     }
     if (enemy.checkCollision(player) && !paused) {
-      player.takeDamage(5);
+      player.takeDamage(enemy.attackDamage);
     }
   }
 
@@ -468,6 +568,9 @@ function gameLoop() {
   if (Math.random() < 0.01 && !paused && enemies.length < 1) { // Adjust the probability as needed
     enemies.push(Enemy.spawnRandom(player));
   }
+
+  frameRateMonitor.update();
+  frameRateMonitor.render(ctx);
 
   requestAnimationFrame(gameLoop); // Call gameLoop again on the next frame
 }
