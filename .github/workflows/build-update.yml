@@ -53,7 +53,7 @@ jobs:
       - name: Update README
         run: |
           dist_size=$(wc -c ./build-${{ env.RELEASE_NUMBER }}.zip | awk '{print $1}')
-          sed -i "s/Dist size: .*/Dist size: $dist_size/" README.md
+          sed -i "s/Dist size: .*/Dist size: $dist_size bytes/" README.md
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
