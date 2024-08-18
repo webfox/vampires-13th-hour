@@ -26,6 +26,17 @@ class FrameRateMonitor {
   }
 }
 
+class Random {
+  constructor(seed) {
+    this.seed = seed;
+  }
+
+  next() {
+    const x = Math.sin(this.seed++) * 10000;
+    return x - Math.floor(x);
+  }
+}
+
 class Player {
   constructor(x, y) {
     this.x = x;
@@ -37,8 +48,9 @@ class Player {
     this.dx = 0;
     this.dy = 0;
     this.health = 100;
-    this.viewDistance = 200;
+    this.viewDistance = 100;
     this.score = 0;
+    this.walkingSpeed = 2;
   }
 
   getX() {
@@ -89,16 +101,16 @@ class Player {
 
   render(ctx, offsetX, offsetY) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear the canvas
-
     // Draw radial gradient around the player
     const gradient = ctx.createRadialGradient(
       ctx.canvas.width / 2, ctx.canvas.height / 2, 0,
-      ctx.canvas.width / 2, ctx.canvas.height / 2, this.viewDistance,
+      ctx.canvas.width / 2, ctx.canvas.height / 2, this.viewDistance * 2,
     );
-    gradient.addColorStop(0, 'rgb(140,140,140)');
+    gradient.addColorStop(0, 'rgb(140,140,140,0.5)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    this.renderTexturedBackground(ctx, offsetX, offsetY);
 
     ctx.beginPath();
     ctx.arc(ctx.canvas.width / 2, ctx.canvas.height / 2, 10, 0, Math.PI * 2, true); // Draw a circle with radius 10 at the center
@@ -108,7 +120,9 @@ class Player {
     if (this.weapon) {
       this.renderWeapon(ctx, offsetX, offsetY);
     }
+
   }
+
   renderHealthBar(ctx) {
     const barWidth = 400;
     const barHeight = 10;
@@ -129,6 +143,36 @@ class Player {
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText(`Score: ${this.score}`, 10, 40);
+  }
+
+  renderTexturedBackground(ctx, offsetX, offsetY) {
+    const patternCanvas = document.createElement('canvas');
+    const patternContext = patternCanvas.getContext('2d');
+    patternCanvas.width = 800;
+    patternCanvas.height = 800;
+
+    const numberOfPoints = 2000;
+    const mapSizeMultiplier = 20;
+
+    const seed = 12345; // Fixed seed for consistent random values
+    const random = new Random(seed);
+
+    for (let i = 0; i < numberOfPoints * mapSizeMultiplier; i++) {
+      const randomX = random.next() * ctx.canvas.width * mapSizeMultiplier;
+      const randomY = random.next() * ctx.canvas.height * mapSizeMultiplier;
+      patternContext.fillStyle = '#151109';
+      patternContext.beginPath();
+      patternContext.arc(randomX - offsetX - (100 * mapSizeMultiplier), randomY - offsetY - (100 * mapSizeMultiplier), 2, 0, Math.PI * 2, true);
+      patternContext.fill();
+    }
+
+
+    const pattern = ctx.createPattern(patternCanvas, 'repeat');
+
+    ctx.save();
+    ctx.fillStyle = pattern;
+    ctx.fillRect(-100 * mapSizeMultiplier, -100 * mapSizeMultiplier, (patternCanvas.width + 100) * mapSizeMultiplier, (patternCanvas.height + 100) * mapSizeMultiplier);
+    ctx.restore();
   }
 
   checkCollision(weapon) {
@@ -553,22 +597,22 @@ function createListeners() {
     player.attack();
   });
 
-  document.getElementById('start-button').addEventListener('click', () => {
-    document.getElementById('start-menu').style.display = 'none';
-    startGame();
-  });
-
-  document.getElementById('resume-button').addEventListener('click', () => {
-    togglePause();
-  });
-
-  document.getElementById('restart-button').addEventListener('click', () => {
-    restartGame();
-  });
-
-  document.getElementById('restart-button-2').addEventListener('click', () => {
-    restartGame();
-  });
+  // document.getElementById('start-button').addEventListener('click', () => {
+  //   document.getElementById('start-menu').style.display = 'none';
+  //   startGame();
+  // });
+  //
+  // document.getElementById('resume-button').addEventListener('click', () => {
+  //   togglePause();
+  // });
+  //
+  // document.getElementById('restart-button').addEventListener('click', () => {
+  //   restartGame();
+  // });
+  //
+  // document.getElementById('restart-button-2').addEventListener('click', () => {
+  //   restartGame();
+  // });
 }
 
 function togglePause() {
@@ -592,10 +636,10 @@ function restartGame() {
 
 function gameLoop() {
   let dx = 0, dy = 0;
-  if (keys['w']) dy = -5;
-  if (keys['a']) dx = -5;
-  if (keys['s']) dy = 5;
-  if (keys['d']) dx = 5;
+  if (keys['w']) dy = -player.walkingSpeed;
+  if (keys['a']) dx = -player.walkingSpeed;
+  if (keys['s']) dy = player.walkingSpeed;
+  if (keys['d']) dx = player.walkingSpeed;
 
   if (!paused) {
     player.updatePosition(dx, dy);
@@ -603,7 +647,7 @@ function gameLoop() {
 
   player.render(ctx, player.getX(), player.getY());
   player.renderHealthBar(ctx);
-  player.renderScore(ctx)
+  player.renderScore(ctx);
 
   for (const weapon of weapons) {
     if (player.checkCollision(weapon)) {
@@ -629,7 +673,7 @@ function gameLoop() {
   }
 
   // Randomly spawn enemies
-  if (Math.random() < 0.01 && !paused && enemies.length < 20) {
+  if (Math.random() < 0.01 && !paused && enemies.length < 0) {
     enemies.push(Enemy.spawnRandom(player));
   }
 
@@ -671,6 +715,7 @@ function startGame() {
 
 function main() {
   createListeners();
+  startGame();
 }
 
 main();
