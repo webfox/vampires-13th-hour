@@ -51,6 +51,19 @@ class Player {
     this.viewDistance = 100;
     this.score = 0;
     this.walkingSpeed = 2;
+    this.frames = [
+      'assets/big_chin/big_chin_0.webp',
+      'assets/big_chin/big_chin_1.webp',
+    ];
+    this.currentFrame = 0;
+    this.frameInterval = 500; // Time in ms between frames
+    this.lastFrameTime = performance.now();
+    this.images = [];
+    this.preloadImages();
+    this.offscreenCanvas = document.createElement('canvas');
+    this.offscreenCanvas.width = 24;
+    this.offscreenCanvas.height = 30;
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d');
   }
 
   getX() {
@@ -84,11 +97,27 @@ class Player {
     }
   }
 
+  preloadImages() {
+    for (const src of this.frames) {
+      const img = new Image();
+      img.src = src;
+      this.images.push(img);
+    }
+  }
+
   updatePosition(dx, dy) {
     this.x += dx;
     this.y += dy;
     this.dx = dx;
     this.dy = dy;
+  }
+
+  updateFrame() {
+    const currentTime = performance.now();
+    if (currentTime - this.lastFrameTime >= this.frameInterval) {
+      this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+      this.lastFrameTime = currentTime;
+    }
   }
 
   updateScore(score) {
@@ -112,11 +141,11 @@ class Player {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     this.renderTexturedBackground(ctx, offsetX, offsetY);
 
-    ctx.beginPath();
-    ctx.arc(ctx.canvas.width / 2, ctx.canvas.height / 2, 10, 0, Math.PI * 2, true); // Draw a circle with radius 10 at the center
-    ctx.fillStyle = 'blue'; // Set the fill color
-    ctx.fill();
-    ctx.closePath();
+    this.updateFrame();
+    this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+    this.offscreenCtx.drawImage(this.images[this.currentFrame], 0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+    ctx.drawImage(this.offscreenCanvas, ctx.canvas.width / 2 - this.offscreenCanvas.width / 2, ctx.canvas.height / 2 - this.offscreenCanvas.height / 2, this.offscreenCanvas.width, this.offscreenCanvas.height);
+
     if (this.weapon) {
       this.renderWeapon(ctx, offsetX, offsetY);
     }
@@ -160,7 +189,7 @@ class Player {
     for (let i = 0; i < numberOfPoints * mapSizeMultiplier; i++) {
       const randomX = random.next() * ctx.canvas.width * mapSizeMultiplier;
       const randomY = random.next() * ctx.canvas.height * mapSizeMultiplier;
-      patternContext.fillStyle = '#151109';
+      patternContext.fillStyle = 'rgba(21,17,9,0.5)';
       patternContext.beginPath();
       patternContext.arc(randomX - offsetX - (100 * mapSizeMultiplier), randomY - offsetY - (100 * mapSizeMultiplier), 2, 0, Math.PI * 2, true);
       patternContext.fill();
@@ -549,7 +578,6 @@ class Pistol extends Gun {
   }
 }
 
-
 /**
  * GAME CONSTANTS
  */
@@ -568,7 +596,6 @@ const availableWeapons = [Axe, Pistol];
 const weapons = [];
 
 const enemies = [];
-
 
 /**
  * MAIN GAME FUNCTIONS
